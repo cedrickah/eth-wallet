@@ -1,71 +1,71 @@
-# LightWallet
+# Eth-wallet
 
-A minimal ethereum javascript wallet.
+A Ethereum Typescript wallet.
 
 ## About
 
-LightWallet is a HD wallet that can store your private keys encrypted in the browser to allow you to run Ethereum dapps even if you're not running a local Ethereum node. It uses [BIP32][] and [BIP39][] to generate an HD tree of addresses from a randomly generated 12-word seed.
-
-LightWallet is primarily intended to be a signing provider for the [Hooked Web3 provider](https://github.com/ConsenSys/hooked-web3-provider) through the `keystore` module. This allows you to have full control over your private keys while still connecting to a remote node to relay signed transactions. Moreover, the `txutils` functions can be used to construct transactions when offline, for use in e.g. air-gapped coldwallet implementations.
+Eth-wallet is a HD wallet that can store your private keys encrypted in the browser to allow you to run Ethereum dapps even if you're not running a local Ethereum node. It uses [BIP32][] and [BIP39][] to generate an HD tree of addresses from a randomly generated 12-word seed.
 
 The default BIP32 HD derivation path has been `m/0'/0'/0'/i`, but any HD path can be chosen.
 
 ## Security
 
-Please note that LightWallet has not been through a comprehensive security review at this point. It is still experimental software, intended for small amounts of Ether to be used for interacting with smart contracts on the Ethereum blockchain. Do not rely on it to store larger amounts of Ether yet.
+Please note that Eth-wallet has not been through a comprehensive security review at this point. It is still experimental software, intended for small amounts of Ether to be used for interacting with smart contracts on the Ethereum blockchain. Do not rely on it to store larger amounts of Ether yet.
 
 ## Get Started
 
 ```
-npm install eth-lightwallet
+npm install eth-wallet
 ```
 
-The `eth-lightwallet` package contains `dist/lightwallet.min.js` that can be included in an HTML page:
+The `eth-wallet` package contains `dist/ethwallet.min.js` that can be included in an HTML page:
 
 ```html
 <html>
   <body>
-    <script src="lightwallet.min.js"></script>
+    <script src="ethwallet.min.js"></script>
   </body>
 </html>
 ```
 
-The file `lightwallet.min.js` exposes the global object `lightwallet` to the browser which has the two main modules `lightwallet.keystore` and `lightwallet.txutils`.
+The file `ethwallet.min.js` exposes the global object `ethwallet` to the browser which has the two main modules `ethwallet.keystore` and `ethwallet.txutils`.
 
 Sample recommended usage with hooked web3 provider:
 
 ```js
 // the seed is stored encrypted by a user-defined password
-var password = prompt('Enter password for encryption', 'password');
+var password = prompt("Enter password for encryption", "password");
 
-keyStore.createVault({
-  password: password,
-  // seedPhrase: seedPhrase, // Optionally provide a 12-word seed phrase
-  // salt: fixture.salt,     // Optionally provide a salt.
-                             // A unique salt will be generated otherwise.
-  // hdPathString: hdPath    // Optional custom HD Path String
-}, function (err, ks) {
+keyStore.createVault(
+  {
+    password: password,
+    // seedPhrase: seedPhrase, // Optionally provide a 12-word seed phrase
+    // salt: fixture.salt,     // Optionally provide a salt.
+    // A unique salt will be generated otherwise.
+    // hdPathString: hdPath    // Optional custom HD Path String
+  },
+  function (err, ks) {
+    // Some methods will require providing the `pwDerivedKey`,
+    // Allowing you to only decrypt private keys on an as-needed basis.
+    // You can generate that value with this convenient method:
+    ks.keyFromPassword(password, function (err, pwDerivedKey) {
+      if (err) throw err;
 
-  // Some methods will require providing the `pwDerivedKey`,
-  // Allowing you to only decrypt private keys on an as-needed basis.
-  // You can generate that value with this convenient method:
-  ks.keyFromPassword(password, function (err, pwDerivedKey) {
-    if (err) throw err;
+      // generate five new address/private key pairs
+      // the corresponding private keys are also encrypted
+      ks.generateNewAddress(pwDerivedKey, 5);
+      var addr = ks.getAddresses();
 
-    // generate five new address/private key pairs
-    // the corresponding private keys are also encrypted
-    ks.generateNewAddress(pwDerivedKey, 5);
-    var addr = ks.getAddresses();
+      ks.passwordProvider = function (callback) {
+        var pw = prompt("Please enter password", "Password");
+        callback(null, pw);
+      };
 
-    ks.passwordProvider = function (callback) {
-      var pw = prompt("Please enter password", "Password");
-      callback(null, pw);
-    };
-
-    // Now set ks as transaction_signer in the hooked web3 provider
-    // and you can start using web3 using the keys/addresses in ks!
-  });
-});
+      // Now set ks as transaction_signer in the hooked web3 provider
+      // and you can start using web3 using the keys/addresses in ks!
+    });
+  }
+);
 ```
 
 Sample old-style usage with hooked web3 provider (still works, but less secure because uses fixed salts).
@@ -75,27 +75,29 @@ Sample old-style usage with hooked web3 provider (still works, but less secure b
 var secretSeed = lightwallet.keystore.generateRandomSeed();
 
 // the seed is stored encrypted by a user-defined password
-var password = prompt('Enter password for encryption', 'password');
-lightwallet.keystore.deriveKeyFromPassword(password, function (err, pwDerivedKey) {
+var password = prompt("Enter password for encryption", "password");
+lightwallet.keystore.deriveKeyFromPassword(
+  password,
+  function (err, pwDerivedKey) {
+    var ks = new lightwallet.keystore(secretSeed, pwDerivedKey);
 
-var ks = new lightwallet.keystore(secretSeed, pwDerivedKey);
+    // generate five new address/private key pairs
+    // the corresponding private keys are also encrypted
+    ks.generateNewAddress(pwDerivedKey, 5);
+    var addr = ks.getAddresses();
 
-// generate five new address/private key pairs
-// the corresponding private keys are also encrypted
-ks.generateNewAddress(pwDerivedKey, 5);
-var addr = ks.getAddresses();
+    // Create a custom passwordProvider to prompt the user to enter their
+    // password whenever the hooked web3 provider issues a sendTransaction
+    // call.
+    ks.passwordProvider = function (callback) {
+      var pw = prompt("Please enter password", "Password");
+      callback(null, pw);
+    };
 
-// Create a custom passwordProvider to prompt the user to enter their
-// password whenever the hooked web3 provider issues a sendTransaction
-// call.
-ks.passwordProvider = function (callback) {
-  var pw = prompt("Please enter password", "Password");
-  callback(null, pw);
-};
-
-// Now set ks as transaction_signer in the hooked web3 provider
-// and you can start using web3 using the keys/addresses in ks!
-});
+    // Now set ks as transaction_signer in the hooked web3 provider
+    // and you can start using web3 using the keys/addresses in ks!
+  }
+);
 ```
 
 ## `keystore` Function definitions
@@ -110,10 +112,10 @@ This is the interface to create a new lightwallet keystore.
 
 #### Options
 
-* password: (mandatory) A string used to encrypt the vault when serialized.
-* seedPhrase: (mandatory) A twelve-word mnemonic used to generate all accounts.
-* salt: (optional) The user may supply the salt used to encrypt & decrypt the vault, otherwise a random salt will be generated.
-* hdPathString (mandatory): The user must provide a `BIP39` compliant HD Path String. Previously the default has been `m/0'/0'/0'`, another popular one is the BIP44 path string `m/44'/60'/0'/0`.
+- password: (mandatory) A string used to encrypt the vault when serialized.
+- seedPhrase: (mandatory) A twelve-word mnemonic used to generate all accounts.
+- salt: (optional) The user may supply the salt used to encrypt & decrypt the vault, otherwise a random salt will be generated.
+- hdPathString (mandatory): The user must provide a `BIP39` compliant HD Path String. Previously the default has been `m/0'/0'/0'`, another popular one is the BIP44 path string `m/44'/60'/0'/0`.
 
 ### `keystore.keyFromPassword(password, callback)`
 
@@ -175,11 +177,11 @@ Signs a transaction with the private key corresponding to `signingAddress`.
 
 #### Inputs
 
-* `keystore`: An instance of the keystore with which to sign the TX with.
-* `pwDerivedKey`: the users password derived key (Uint8Array)
-* `rawTx`: Hex-string defining an RLP-encoded raw transaction.
-* `signingAddress`: hex-string defining the address to send the transaction from.
-* `hdPathString`: (Optional) A path at which to create the encryption keys.
+- `keystore`: An instance of the keystore with which to sign the TX with.
+- `pwDerivedKey`: the users password derived key (Uint8Array)
+- `rawTx`: Hex-string defining an RLP-encoded raw transaction.
+- `signingAddress`: hex-string defining the address to send the transaction from.
+- `hdPathString`: (Optional) A path at which to create the encryption keys.
 
 #### Return value
 
@@ -191,11 +193,11 @@ Creates and signs a sha3 hash of a message with the private key corresponding to
 
 #### Inputs
 
-* `keystore`: An instance of the keystore with which to sign the TX with.
-* `pwDerivedKey`: the users password derived key (Uint8Array)
-* `rawMsg`: Message to be signed
-* `signingAddress`: hex-string defining the address corresponding to the signing private key.
-* `hdPathString`: (Optional) A path at which to create the encryption keys.
+- `keystore`: An instance of the keystore with which to sign the TX with.
+- `pwDerivedKey`: the users password derived key (Uint8Array)
+- `rawMsg`: Message to be signed
+- `signingAddress`: hex-string defining the address corresponding to the signing private key.
+- `hdPathString`: (Optional) A path at which to create the encryption keys.
 
 #### Return value
 
@@ -207,11 +209,11 @@ Signs a sha3 message hash with the private key corresponding to `signingAddress`
 
 #### Inputs
 
-* `keystore`: An instance of the keystore with which to sign the TX with.
-* `pwDerivedKey`: the users password derived key (Uint8Array)
-* `msgHash`: SHA3 hash to be signed
-* `signingAddress`: hex-string defining the address corresponding to the signing private key.
-* `hdPathString`: (Optional) A path at which to create the encryption keys.
+- `keystore`: An instance of the keystore with which to sign the TX with.
+- `pwDerivedKey`: the users password derived key (Uint8Array)
+- `msgHash`: SHA3 hash to be signed
+- `signingAddress`: hex-string defining the address corresponding to the signing private key.
+- `hdPathString`: (Optional) A path at which to create the encryption keys.
 
 #### Return value
 
@@ -223,7 +225,7 @@ Concatenates signature object to return signature as hex-string in the same form
 
 #### Inputs
 
-* `signature`: Signature object as returned from `signMsg` or ``signMsgHash`.
+- `signature`: Signature object as returned from `signMsg` or ``signMsgHash`.
 
 #### Return value
 
@@ -232,7 +234,6 @@ Concatenated signature object as hex-string.
 ### `signing.recoverAddress(rawMsg, v, r, s)`
 
 Recovers the signing address from the message `rawMsg` and the signature `v, r, s`.
-
 
 ## `encryption` Function definitions
 
@@ -281,19 +282,19 @@ Using the data in `txObject`, creates an RLP-encoded transaction that will creat
 
 #### Inputs
 
-* `fromAddress`: Address to send the transaction from
-* `txObject.gasLimit`: Gas limit
-* `txObject.gasPrice`: Gas price
-* `txObject.value`: Endowment (optional)
-* `txObject.nonce`: Nonce of `fromAddress`
-* `txObject.data`: Compiled code of the contract
+- `fromAddress`: Address to send the transaction from
+- `txObject.gasLimit`: Gas limit
+- `txObject.gasPrice`: Gas price
+- `txObject.value`: Endowment (optional)
+- `txObject.nonce`: Nonce of `fromAddress`
+- `txObject.data`: Compiled code of the contract
 
 #### Output
 
 Object `obj` with fields
 
-* `obj.tx`: RLP encoded transaction (hex string)
-* `obj.addr`: Address of the created contract
+- `obj.tx`: RLP encoded transaction (hex string)
+- `obj.addr`: Address of the created contract
 
 ### `txutils.functionTx(abi, functionName, args, txObject)`
 
@@ -301,19 +302,18 @@ Creates a transaction calling a function with name `functionName`, with argument
 
 #### Inputs
 
-* `abi`: Json-formatted ABI as returned from the `solc` compiler
-* `functionName`: string with the function name
-* `args`: Array with the arguments to the function
-* `txObject.to`: Address of the contract
-* `txObject.gasLimit`: Gas limit
-* `txObject.gasPrice`: Gas price
-* `txObject.value`: Value to send
-* `txObject.nonce`: Nonce of sending address
+- `abi`: Json-formatted ABI as returned from the `solc` compiler
+- `functionName`: string with the function name
+- `args`: Array with the arguments to the function
+- `txObject.to`: Address of the contract
+- `txObject.gasLimit`: Gas limit
+- `txObject.gasPrice`: Gas price
+- `txObject.value`: Value to send
+- `txObject.nonce`: Nonce of sending address
 
 #### Output
 
 RLP-encoded hex string defining the transaction.
-
 
 ### `txutils.valueTx(txObject)`
 
@@ -321,11 +321,11 @@ Creates a transaction sending value to `txObject.to`.
 
 #### Inputs
 
-* `txObject.to`: Address to send to
-* `txObject.gasLimit`: Gas limit
-* `txObject.gasPrice`: Gas price
-* `txObject.value`: Value to send
-* `txObject.nonce`: Nonce of sending address
+- `txObject.to`: Address to send to
+- `txObject.gasLimit`: Gas limit
+- `txObject.gasPrice`: Gas price
+- `txObject.value`: Value to send
+- `txObject.nonce`: Nonce of sending address
 
 #### Output
 
