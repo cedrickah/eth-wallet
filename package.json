@@ -1,11 +1,11 @@
 {
-  "name": "eth-lightwallet",
-  "version": "4.0.0",
-  "description": "A lightweight ethereum javascript wallet.",
+  "name": "eth-wallet",
+  "version": "0.0.0",
+  "description": "A Ethereum Typescript wallet.",
   "main": "index.js",
   "repository": {
     "type": "git",
-    "url": "https://github.com/ConsenSys/eth-lightwallet.git"
+    "url": "https://github.com/cedrickah/eth-wallet.git"
   },
   "scripts": {
     "build-js": "browserify index.js --s lightwallet -g [ babelify --presets [ @babel/preset-env @babel/preset-react ] ] | uglifyjs -c > dist/lightwallet.min.js",
@@ -57,6 +57,10 @@
     {
       "name": "Slava Matvienco",
       "email": "slava.matvienco@gmail.com"
+    },
+    {
+      "name": "Cedrick Ah",
+      "email": "cedrickentrep@gmail.com"
     }
   ],
   "license": "MIT",
